@@ -6,45 +6,53 @@ global RGBdBild # Durchschnittlicher RGB über alle Bilder
 global MAximwarhier
 
 def Ordnerauslesen(Bildpfad):
-    bilder_liste = glob.glob(os.path.join(Bildpfad, '*.jpg'))
+    bilder_liste = glob.glob(os.path.join(Bildpfad, '*.jpeg'))
     print(f'Es wurden {str(len(bilder_liste))} Bilder in dem Ordner gefunden')
     #ydalleBild = HelligkeitjedesBilder(bilder_liste)
     #print(f'Durchschnittliche Helligkeit aller Bilder: {ydalleBild}')
     Bilderzusammenfügen(bilder_liste, Image.open(bilder_liste[0]).size)
-def HelligkeitjedesBilder(ListeBilder):
-    for Bild in ListeBilder:
-        img = Image.open(Bild)
-        data = np.array(img)
-        RGBdBild = np.mean(data, axis=(0, 1))
-        print(RGBdBild)
-        # Rote Werte
-        data[:, :, 0] = np.where(data[:, :, 0] < RGBdBild[0], data[:, :, 0] - (data[:, :, 0] - RGBdBild[0]) ,
-                                 np.where(data[:, :, 0] > RGBdBild[0],
-                                          data[:, :, 0] + (data[:, :, 0] - RGBdBild[0]), data[:, :, 0]))
 
-        # Grüne Werte
-        data[:, :, 1] = np.where(data[:, :, 1] < RGBdBild[1], data[:, :, 1] - (data[:, :, 1] - RGBdBild[1]),
-                                 np.where(data[:, :, 1] > RGBdBild[1],
-                                          data[:, :, 1] + (data[:, :, 1] - RGBdBild[1]), data[:, :, 1]))
+def Helligkeitverändern(dBild, Faktor):
 
-        # Blaue Werte
-        data[:, :, 2] = np.where(data[:, :, 2] < RGBdBild[2], data[:, :, 2] - (data[:, :, 2] - RGBdBild[2]),
-                                 np.where(data[:, :, 2] > RGBdBild[2],
-                                          data[:, :, 2] + (data[:, :, 2] - RGBdBild[2]), data[:, :, 2]))
-        Image.fromarray(data.astype(np.uint8)).save("extrahierte_bilder/manipuliertes_bild.jpg")
+    img = Image.open(dBild)
+    data = np.array(img)
+
+    #Berechnen Sie den Durchschnitt der Pixelwerte
+    durchschnitt = np.mean(data)
+    # Berechnen Sie die Differenz zwischen jedem Pixel und dem Durchschnitt
+    differenz = data - durchschnitt
+    # Pixelwerte unter dem Durchschnitt verdunkeln
+    data[data < durchschnitt] -= np.abs(Faktor * differenz[data < durchschnitt]).astype(data.dtype)
+    print(Faktor * differenz[data < durchschnitt])
+    # Pixelwerte über dem Durchschnitt aufhellen
+    data[data > durchschnitt] += np.abs(Faktor * differenz[data > durchschnitt]).astype(data.dtype)
+    #for i in range(img.size[1]):
+    #     for j in range(img.size[0]):
+    #         if data[i][j] < durchschnitt:
+    #             data[i][j] -= np.abs(data[i][j] - durchschnitt) * Faktor
+    #             print(data[i][j])
+    #         else:
+    #            data[i][j] += np.abs(data[i][j]-durchschnitt) * Faktor
+    #            print(data[i][j])
+    # Auf den Wertebereich von uint8 beschränken (0-255)
+    data = np.clip(data, 0, 255).astype(np.uint8)
+    Image.fromarray(data.astype(np.uint8)).save("manipuliertes_bild.jpg")
 def Bilderzusammenfügen(ListeBilder, imgsize):
-    i = 0
-    endbild = np.zeros((imgsize[1], imgsize[0], 3), dtype=np.uint8)
+    umgedrehte_imgsize = (imgsize[1], imgsize[0])
+    durchschnittsfoto = np.zeros(umgedrehte_imgsize, dtype=np.float64)
+    i=0
     for Bild in ListeBilder:
         img = Image.open(Bild)
-        data = np.array(img)
 
-        if i == 0:
-            endbild = data[:,:]
-        else:
-            endbild = (endbild[:,:] + data[:,:]) // 2
-            print(endbild[0][0][0])
-        i +=1
-    Image.fromarray(endbild.astype(np.uint8)).save("Ausgansbild.jpg")
-    print("Test")
+        # Bild in Graustufen konvertieren und zu einem Numpy-Array konvertieren
+        bild_array = np.array(img.convert('L'), dtype=np.float64)
+        print(i)
+        i+=1
+
+        durchschnittsfoto += bild_array
+    durchschnittsfoto /=len(ListeBilder)
+    durchschnittsfoto = durchschnittsfoto.astype(np.uint8)
+    Image.fromarray(durchschnittsfoto.astype(np.uint8)).save("Ausgansbild.jpg")
+
 Ordnerauslesen('extrahierte_bilder')
+Helligkeitverändern(r'C:\Users\soere\PycharmProjects\Seminarfach\Ausgansbild.jpg',2)
